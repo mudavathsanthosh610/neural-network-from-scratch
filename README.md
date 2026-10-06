@@ -12,7 +12,7 @@ Open `index.html` directly in a modern browser, or serve the project locally:
 python -m http.server 8000
 ```
 
-Then visit <http://localhost:8000/index.html>. The browser demo runs without a backend and includes:
+Then visit https://mudavathsanthosh610.github.io/neural-network-from-scratch/ The browser demo runs without a backend and includes:
 
 - Live training loss and a progress indicator
 - Editable two-number inputs and training settings
