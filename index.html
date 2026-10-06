@@ -1,0 +1,896 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neural Network Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #182238;
+        --muted: #66738a;
+        --line: #e3e9f3;
+        --blue: #4f63e8;
+        --blue-dark: #394bc9;
+        --surface: #ffffff;
+        --canvas: #f4f6fb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(ellipse at 8% 0%, rgba(107, 125, 255, 0.13), transparent 34rem),
+          var(--canvas);
+      }
+      .container { width: min(1120px, calc(100% - 40px)); margin: 38px auto 64px; }
+      .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        color: var(--blue-dark);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .eyebrow::before { width: 8px; height: 8px; border-radius: 50%; background: #697cff; content: ""; }
+      h1, h2, p { margin-top: 0; }
+      h1 { margin-bottom: 10px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -0.045em; line-height: 1.05; }
+      h2 { margin-bottom: 7px; font-size: 1.08rem; letter-spacing: -0.015em; }
+      .small-note, .chart-note { color: var(--muted); }
+      .small-note { max-width: 670px; margin-bottom: 0; line-height: 1.65; }
+      .demo-tag { flex: 0 0 auto; padding: 9px 13px; border: 1px solid #dfe5f2; border-radius: 999px; background: #fff; color: #526078; font-size: 0.78rem; font-weight: 700; }
+      .panel, .chart-box {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: 0 8px 24px rgba(32, 49, 87, 0.045);
+      }
+      .setup-panel { padding: 24px; }
+      .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+      .section-heading p { margin-bottom: 0; color: var(--muted); font-size: 0.88rem; }
+      .setup-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+      .control-title { margin: 0 0 14px; color: #38445a; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0; }
+      label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #354159; font-size: 0.83rem; font-weight: 700; }
+      label span { color: var(--blue-dark); font-variant-numeric: tabular-nums; }
+      input, select {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 12px;
+        border: 1px solid #dce3ef;
+        border-radius: 10px;
+        outline: none;
+        background: #fbfcff;
+        color: var(--ink);
+        font: inherit;
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+      input:focus, select:focus { border-color: #7b8aff; box-shadow: 0 0 0 3px rgba(79, 99, 232, 0.13); }
+      input[type="range"] { min-height: 26px; padding: 0; border: 0; accent-color: var(--blue); background: transparent; box-shadow: none; }
+      button {
+        min-height: 46px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 11px;
+        color: #fff;
+        background: linear-gradient(135deg, #5e70f1, #4658d8);
+        box-shadow: 0 7px 14px rgba(79, 99, 232, 0.2);
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 750;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+      }
+      button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 18px rgba(79, 99, 232, 0.25); }
+      button:focus-visible { outline: 3px solid rgba(79, 99, 232, 0.3); outline-offset: 3px; }
+      button:disabled { cursor: wait; opacity: 0.72; }
+      .train-actions { display: flex; align-items: center; gap: 13px; margin-top: 17px; }
+      .action-hint { color: var(--muted); font-size: 0.79rem; line-height: 1.45; }
+      .result {
+        display: block;
+        min-height: 100%;
+        padding: 20px;
+        border: 1px solid #e1e6ff;
+        border-radius: 14px;
+        background: linear-gradient(145deg, #f5f6ff, #f8faff);
+        color: #354159;
+        line-height: 1.8;
+      }
+      .result strong { color: #24345c; }
+      .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 20px; }
+      .chart-box { min-width: 0; padding: 20px; }
+      .chart-box.loss-box { grid-column: 1 / -1; }
+      .chart-note { min-height: 38px; margin-bottom: 14px; font-size: 0.82rem; line-height: 1.55; }
+      canvas { display: block; width: 100%; height: auto; border: 1px solid #edf0f6; border-radius: 10px; background: #fff; }
+      .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 13px; color: #526078; font-size: 0.78rem; }
+      .legend span { display: inline-flex; align-items: center; gap: 7px; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; }
+      .class-one { background: #4f63e8; }
+      .class-zero { background: #f28b54; }
+      .progress-row { display: flex; justify-content: space-between; gap: 12px; margin: 16px 0 8px; color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+      .progress-track { height: 8px; overflow: hidden; border-radius: 99px; background: #edf0f8; }
+      .progress-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #7180ff, #4f63e8); transition: width 180ms ease; }
+      :root {
+        color-scheme: dark;
+        --ink: #edf3ff;
+        --muted: #98a9c4;
+        --line: rgba(155, 180, 220, 0.14);
+        --blue: #75e3ff;
+        --blue-dark: #8eeaff;
+        --surface: rgba(13, 23, 42, 0.88);
+        --canvas: #070d19;
+      }
+      body {
+        background:
+          radial-gradient(ellipse at 76% 8%, rgba(22, 116, 168, 0.2), transparent 34rem),
+          radial-gradient(ellipse at 12% 26%, rgba(76, 72, 190, 0.17), transparent 32rem),
+          linear-gradient(145deg, #080e1b, #0b1425 56%, #07101c);
+      }
+      .container { position: relative; }
+      .hero { position: relative; padding: 22px 4px 27px; }
+      .hero::after {
+        position: absolute;
+        right: 2%;
+        bottom: 0;
+        left: 0;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(117, 227, 255, 0.45), rgba(117, 227, 255, 0.05), transparent);
+        content: "";
+      }
+      .eyebrow { color: #83e8ff; }
+      .eyebrow::before { background: #6fe5ff; box-shadow: 0 0 13px rgba(111, 229, 255, 0.9); }
+      h1 { color: #f3f7ff; text-shadow: 0 0 36px rgba(102, 190, 255, 0.16); }
+      h2 { color: #e9f1ff; }
+      .small-note, .chart-note, .section-heading p { color: var(--muted); }
+      .demo-tag {
+        border-color: rgba(117, 227, 255, 0.23);
+        background: rgba(14, 30, 51, 0.7);
+        color: #b8d6e9;
+        box-shadow: inset 0 0 18px rgba(67, 171, 208, 0.04);
+      }
+      .panel, .chart-box {
+        border-color: var(--line);
+        background: linear-gradient(145deg, rgba(16, 29, 51, 0.96), rgba(10, 20, 37, 0.96));
+        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.24), inset 0 1px rgba(255, 255, 255, 0.035);
+        backdrop-filter: blur(16px);
+      }
+      .setup-panel { padding: 27px; }
+      .control-title { color: #a9bbd5; }
+      label { color: #d5e0f2; }
+      label span { color: #8be9ff; }
+      input, select {
+        border-color: rgba(159, 183, 218, 0.18);
+        background: rgba(5, 13, 27, 0.72);
+        color: #eef5ff;
+      }
+      input:focus, select:focus {
+        border-color: #75dff5;
+        box-shadow: 0 0 0 3px rgba(74, 204, 236, 0.14), 0 0 22px rgba(74, 204, 236, 0.08);
+      }
+      input[type="range"] { accent-color: #67dbf5; }
+      button {
+        background: linear-gradient(115deg, #3f9df1, #5b69ee 58%, #795cf3);
+        box-shadow: 0 8px 24px rgba(70, 118, 242, 0.28), inset 0 1px rgba(255, 255, 255, 0.25);
+      }
+      button:hover:not(:disabled) { box-shadow: 0 11px 30px rgba(70, 145, 255, 0.4), inset 0 1px rgba(255, 255, 255, 0.3); }
+      button:focus-visible { outline-color: rgba(117, 227, 255, 0.55); }
+      .action-hint { color: #91a5c1; }
+      .result {
+        border-color: rgba(103, 205, 234, 0.19);
+        background:
+          radial-gradient(ellipse at 100% 0%, rgba(57, 148, 207, 0.13), transparent 66%),
+          linear-gradient(145deg, rgba(11, 27, 47, 0.96), rgba(9, 20, 37, 0.96));
+        color: #bed0e7;
+        box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+      }
+      .result strong { color: #8ce8fb; }
+      .chart-box { padding: 22px; }
+      canvas {
+        border-color: rgba(153, 177, 210, 0.2);
+        background: #f8faff;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.17);
+      }
+      #surfaceChart { cursor: grab; touch-action: none; }
+      #surfaceChart:active { cursor: grabbing; }
+      #surfaceChart:focus-visible { outline: 3px solid #75dff5; outline-offset: 3px; }
+      .legend { color: #a7b8d0; }
+      .class-one { background: #5471ff; box-shadow: 0 0 10px rgba(84, 113, 255, 0.4); }
+      .class-zero { background: #ff9a63; box-shadow: 0 0 10px rgba(255, 154, 99, 0.3); }
+      .progress-row { color: #a6b6cd; }
+      .progress-track { background: rgba(154, 179, 216, 0.12); }
+      .progress-fill {
+        background: linear-gradient(90deg, #56d9f4, #5884ff 58%, #9a67ff);
+        box-shadow: 0 0 16px rgba(82, 190, 255, 0.48);
+      }
+      @media (max-width: 720px) {
+        .container { width: min(100% - 24px, 560px); margin: 22px auto 40px; }
+        .hero { align-items: flex-start; flex-direction: column; gap: 15px; }
+        .setup-layout { grid-template-columns: 1fr; gap: 20px; }
+        .result { min-height: auto; }
+        .chart-grid { grid-template-columns: 1fr; gap: 14px; }
+        .chart-box.loss-box { grid-column: auto; }
+      }
+      @media (max-width: 420px) {
+        .setup-panel, .chart-box { padding: 16px; }
+        .grid { gap: 10px; }
+        .train-actions { align-items: flex-start; flex-direction: column; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <div>
+          <div class="eyebrow">Interactive machine learning lab</div>
+          <h1>Neural Network Demo</h1>
+          <p class="small-note">Train a tiny classifier, explore how it learns, and test predictions on your own inputs.</p>
+        </div>
+        <span class="demo-tag">2 inputs · 2 classes · 4 examples</span>
+      </header>
+
+      <section class="panel setup-panel" aria-labelledby="setupHeading">
+        <div class="section-heading">
+          <div>
+            <h2 id="setupHeading">Experiment setup</h2>
+            <p>Change the sample point or training settings, then run the model.</p>
+          </div>
+        </div>
+        <div class="setup-layout">
+          <div>
+            <h3 class="control-title">Prediction input</h3>
+            <div class="grid">
+              <div>
+                <label for="x1">Input 1</label>
+                <input id="x1" type="number" value="-7" step="any" />
+              </div>
+              <div>
+                <label for="x2">Input 2</label>
+                <input id="x2" type="number" value="-3" step="any" />
+              </div>
+            </div>
+            <h3 class="control-title" style="margin-top:20px">Training settings</h3>
+            <div class="grid">
+              <div>
+                <label for="lrSlider">Learning rate <span id="lrValue">0.1</span></label>
+                <input id="lrSlider" type="range" min="0.001" max="1" step="0.001" value="0.1">
+              </div>
+              <div>
+                <label for="epochsSlider">Epochs <span id="epochsValue">1000</span></label>
+                <input id="epochsSlider" type="range" min="10" max="2000" step="10" value="1000">
+              </div>
+              <div>
+                <label for="batchSlider">Batch size <span id="batchValue">64</span></label>
+                <input id="batchSlider" type="range" min="1" max="256" step="1" value="64">
+              </div>
+              <div>
+                <label for="optimizerSelect">Optimizer</label>
+                <select id="optimizerSelect">
+                  <option value="sgd">SGD</option>
+                  <option value="momentum">Momentum</option>
+                  <option value="adam">Adam</option>
+                </select>
+              </div>
+            </div>
+            <div class="train-actions">
+              <button id="trainBtn" type="button">Train model</button>
+              <span class="action-hint">Training runs right here in your browser.</span>
+            </div>
+          </div>
+          <div class="result" id="resultBox" aria-live="polite">Training not started yet.</div>
+        </div>
+      </section>
+
+      <div class="chart-grid">
+        <section class="chart-box loss-box">
+          <h2>Live training loss</h2>
+          <p class="chart-note" id="trainingStatus" aria-live="polite">Ready when you are — press Train model to start.</p>
+          <div class="progress-row"><span>Training progress</span><span id="progressValue">0%</span></div>
+          <div class="progress-track" role="progressbar" aria-label="Training progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <canvas id="lossChart" width="760" height="250" aria-label="Training loss against epoch"></canvas>
+        </section>
+
+        <section class="chart-box">
+          <h2>Decision boundary</h2>
+          <p class="chart-note">Background color shows the model's predicted class across the input space. Dots are training examples; the outlined dot is your current input.</p>
+          <canvas id="boundaryChart" width="520" height="370" aria-label="Two-dimensional decision boundary"></canvas>
+          <div class="legend">
+            <span><i class="dot class-one"></i>Class 1</span>
+            <span><i class="dot class-zero"></i>Class 0</span>
+          </div>
+        </section>
+
+        <section class="chart-box">
+          <h2>3D probability surface</h2>
+          <p class="chart-note">The surface height and color represent the network's output probability as both inputs change. Drag to rotate, or focus the chart and use the arrow keys.</p>
+          <canvas id="surfaceChart" width="520" height="370" tabindex="0" role="img" aria-label="Interactive three-dimensional probability surface. Drag to rotate; use arrow keys to change the view."></canvas>
+          <div class="legend">
+            <span><i class="dot class-zero"></i>Lower output</span>
+            <span><i class="dot class-one"></i>Higher output</span>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const data = [[-2, -1], [25, 6], [17, 4], [-15, -6]];
+      const labels = [1, 0, 0, 1];
+      const xRange = { min: -20, max: 30 };
+      const yRange = { min: -8, max: 8 };
+
+      const trainButton = document.getElementById('trainBtn');
+      const statusText = document.getElementById('trainingStatus');
+      const resultBox = document.getElementById('resultBox');
+      const progressFill = document.getElementById('progressFill');
+      const progressValue = document.getElementById('progressValue');
+      const progressTrack = document.querySelector('[role="progressbar"]');
+      let activeNetwork = null;
+      let lossHistory = [];
+
+      function updateProgress(percent) {
+        const progress = Math.max(0, Math.min(100, Math.round(percent)));
+        progressFill.style.width = `${progress}%`;
+        progressValue.textContent = `${progress}%`;
+        progressTrack.setAttribute('aria-valuenow', String(progress));
+      }
+
+      function sigmoid(value) {
+        return 1 / (1 + Math.exp(-value));
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      class TinyNetwork {
+        constructor() {
+          this.w1 = (Math.random() - 0.5) * 2;
+          this.w2 = (Math.random() - 0.5) * 2;
+          this.w3 = (Math.random() - 0.5) * 2;
+          this.w4 = (Math.random() - 0.5) * 2;
+          this.w5 = (Math.random() - 0.5) * 2;
+          this.w6 = (Math.random() - 0.5) * 2;
+          this.b1 = (Math.random() - 0.5) * 2;
+          this.b2 = (Math.random() - 0.5) * 2;
+          this.b3 = (Math.random() - 0.5) * 2;
+
+          this.vw1 = 0; this.vw2 = 0; this.vw3 = 0; this.vw4 = 0; this.vw5 = 0; this.vw6 = 0;
+          this.vb1 = 0; this.vb2 = 0; this.vb3 = 0;
+
+          this.mw1 = 0; this.mw2 = 0; this.mw3 = 0; this.mw4 = 0; this.mw5 = 0; this.mw6 = 0;
+          this.mb1 = 0; this.mb2 = 0; this.mb3 = 0;
+          this.vw1sq = 0; this.vw2sq = 0; this.vw3sq = 0; this.vw4sq = 0; this.vw5sq = 0; this.vw6sq = 0;
+          this.vb1sq = 0; this.vb2sq = 0; this.vb3sq = 0;
+          this.mw1sq = 0; this.mw2sq = 0; this.mw3sq = 0; this.mw4sq = 0; this.mw5sq = 0; this.mw6sq = 0;
+          this.mb1sq = 0; this.mb2sq = 0; this.mb3sq = 0;
+          this.adamStep = 0;
+        }
+
+        feedforward(point) {
+          const [x1, x2] = point;
+          const h1 = sigmoid(this.w1 * x1 + this.w2 * x2 + this.b1);
+          const h2 = sigmoid(this.w3 * x1 + this.w4 * x2 + this.b2);
+          return sigmoid(this.w5 * h1 + this.w6 * h2 + this.b3);
+        }
+
+        loss() {
+          let total = 0;
+          for (let i = 0; i < data.length; i++) {
+            const prediction = this.feedforward(data[i]);
+            const error = labels[i] - prediction;
+            total += error * error;
+          }
+          return total / data.length;
+        }
+
+        trainBatch(batchIndices, learningRate, optimizer, batchSize) {
+          let gradW1 = 0, gradW2 = 0, gradW3 = 0, gradW4 = 0, gradW5 = 0, gradW6 = 0;
+          let gradB1 = 0, gradB2 = 0, gradB3 = 0;
+          let totalLoss = 0;
+
+          for (const idx of batchIndices) {
+            const point = data[idx];
+            const yTrue = labels[idx];
+            const sumH1 = this.w1 * point[0] + this.w2 * point[1] + this.b1;
+            const h1 = sigmoid(sumH1);
+            const sumH2 = this.w3 * point[0] + this.w4 * point[1] + this.b2;
+            const h2 = sigmoid(sumH2);
+            const sumO1 = this.w5 * h1 + this.w6 * h2 + this.b3;
+            const yPred = sigmoid(sumO1);
+            const dLoss = -(yTrue - yPred) * 2;
+            const dOutput = yPred * (1 - yPred);
+            const dH1 = this.w5 * dLoss * dOutput;
+            const dH2 = this.w6 * dLoss * dOutput;
+            const dSigH1 = h1 * (1 - h1);
+            const dSigH2 = h2 * (1 - h2);
+
+            gradW1 += dLoss * dOutput * this.w5 * dSigH1 * point[0];
+            gradW2 += dLoss * dOutput * this.w5 * dSigH1 * point[1];
+            gradB1 += dLoss * dOutput * this.w5 * dSigH1;
+            gradW3 += dLoss * dOutput * this.w6 * dSigH2 * point[0];
+            gradW4 += dLoss * dOutput * this.w6 * dSigH2 * point[1];
+            gradB2 += dLoss * dOutput * this.w6 * dSigH2;
+            gradW5 += dLoss * dOutput * h1;
+            gradW6 += dLoss * dOutput * h2;
+            gradB3 += dLoss * dOutput;
+            totalLoss += (yTrue - yPred) * (yTrue - yPred);
+          }
+
+          const scale = 1 / batchIndices.length;
+          gradW1 *= scale; gradW2 *= scale; gradW3 *= scale; gradW4 *= scale;
+          gradW5 *= scale; gradW6 *= scale; gradB1 *= scale; gradB2 *= scale; gradB3 *= scale;
+
+          const momentum = optimizer === 'momentum' ? 0.9 : 0;
+          const adamBeta1 = 0.9; const adamBeta2 = 0.999; const eps = 1e-8;
+
+          const apply = (current, grad, vel, velSq, m, v, isBias = false) => {
+            if (optimizer === 'sgd') {
+              return current - learningRate * grad;
+            }
+            if (optimizer === 'momentum') {
+              const newVel = momentum * vel + learningRate * grad;
+              return current - newVel;
+            }
+            this.adamStep += 1;
+            const mNew = adamBeta1 * m + (1 - adamBeta1) * grad;
+            const vNew = adamBeta2 * v + (1 - adamBeta2) * grad * grad;
+            const mHat = mNew / (1 - Math.pow(adamBeta1, this.adamStep));
+            const vHat = vNew / (1 - Math.pow(adamBeta2, this.adamStep));
+            const step = learningRate * mHat / (Math.sqrt(vHat) + eps);
+            return current - step;
+          };
+
+          if (optimizer === 'momentum') {
+            this.vw1 = 0.9 * this.vw1 + learningRate * gradW1;
+            this.vw2 = 0.9 * this.vw2 + learningRate * gradW2;
+            this.vw3 = 0.9 * this.vw3 + learningRate * gradW3;
+            this.vw4 = 0.9 * this.vw4 + learningRate * gradW4;
+            this.vw5 = 0.9 * this.vw5 + learningRate * gradW5;
+            this.vw6 = 0.9 * this.vw6 + learningRate * gradW6;
+            this.vb1 = 0.9 * this.vb1 + learningRate * gradB1;
+            this.vb2 = 0.9 * this.vb2 + learningRate * gradB2;
+            this.vb3 = 0.9 * this.vb3 + learningRate * gradB3;
+
+            this.w1 -= this.vw1; this.w2 -= this.vw2; this.w3 -= this.vw3; this.w4 -= this.vw4;
+            this.w5 -= this.vw5; this.w6 -= this.vw6; this.b1 -= this.vb1; this.b2 -= this.vb2; this.b3 -= this.vb3;
+          } else if (optimizer === 'adam') {
+            this.adamStep += 1;
+            const beta1 = 0.9; const beta2 = 0.999; const eps = 1e-8;
+            this.mw1 = beta1 * this.mw1 + (1 - beta1) * gradW1; this.vw1sq = beta2 * this.vw1sq + (1 - beta2) * gradW1 * gradW1;
+            this.mw2 = beta1 * this.mw2 + (1 - beta1) * gradW2; this.vw2sq = beta2 * this.vw2sq + (1 - beta2) * gradW2 * gradW2;
+            this.mw3 = beta1 * this.mw3 + (1 - beta1) * gradW3; this.vw3sq = beta2 * this.vw3sq + (1 - beta2) * gradW3 * gradW3;
+            this.mw4 = beta1 * this.mw4 + (1 - beta1) * gradW4; this.vw4sq = beta2 * this.vw4sq + (1 - beta2) * gradW4 * gradW4;
+            this.mw5 = beta1 * this.mw5 + (1 - beta1) * gradW5; this.vw5sq = beta2 * this.vw5sq + (1 - beta2) * gradW5 * gradW5;
+            this.mw6 = beta1 * this.mw6 + (1 - beta1) * gradW6; this.vw6sq = beta2 * this.vw6sq + (1 - beta2) * gradW6 * gradW6;
+            this.mb1 = beta1 * this.mb1 + (1 - beta1) * gradB1; this.vb1sq = beta2 * this.vb1sq + (1 - beta2) * gradB1 * gradB1;
+            this.mb2 = beta1 * this.mb2 + (1 - beta1) * gradB2; this.vb2sq = beta2 * this.vb2sq + (1 - beta2) * gradB2 * gradB2;
+            this.mb3 = beta1 * this.mb3 + (1 - beta1) * gradB3; this.vb3sq = beta2 * this.vb3sq + (1 - beta2) * gradB3 * gradB3;
+
+            const mw1Hat = this.mw1 / (1 - Math.pow(beta1, this.adamStep));
+            const vw1Hat = this.vw1sq / (1 - Math.pow(beta2, this.adamStep));
+            this.w1 -= learningRate * mw1Hat / (Math.sqrt(vw1Hat) + eps);
+            const mw2Hat = this.mw2 / (1 - Math.pow(beta1, this.adamStep));
+            const vw2Hat = this.vw2sq / (1 - Math.pow(beta2, this.adamStep));
+            this.w2 -= learningRate * mw2Hat / (Math.sqrt(vw2Hat) + eps);
+            const mw3Hat = this.mw3 / (1 - Math.pow(beta1, this.adamStep));
+            const vw3Hat = this.vw3sq / (1 - Math.pow(beta2, this.adamStep));
+            this.w3 -= learningRate * mw3Hat / (Math.sqrt(vw3Hat) + eps);
+            const mw4Hat = this.mw4 / (1 - Math.pow(beta1, this.adamStep));
+            const vw4Hat = this.vw4sq / (1 - Math.pow(beta2, this.adamStep));
+            this.w4 -= learningRate * mw4Hat / (Math.sqrt(vw4Hat) + eps);
+            const mw5Hat = this.mw5 / (1 - Math.pow(beta1, this.adamStep));
+            const vw5Hat = this.vw5sq / (1 - Math.pow(beta2, this.adamStep));
+            this.w5 -= learningRate * mw5Hat / (Math.sqrt(vw5Hat) + eps);
+            const mw6Hat = this.mw6 / (1 - Math.pow(beta1, this.adamStep));
+            const vw6Hat = this.vw6sq / (1 - Math.pow(beta2, this.adamStep));
+            this.w6 -= learningRate * mw6Hat / (Math.sqrt(vw6Hat) + eps);
+
+            const mb1Hat = this.mb1 / (1 - Math.pow(beta1, this.adamStep));
+            const vb1Hat = this.vb1sq / (1 - Math.pow(beta2, this.adamStep));
+            this.b1 -= learningRate * mb1Hat / (Math.sqrt(vb1Hat) + eps);
+            const mb2Hat = this.mb2 / (1 - Math.pow(beta1, this.adamStep));
+            const vb2Hat = this.vb2sq / (1 - Math.pow(beta2, this.adamStep));
+            this.b2 -= learningRate * mb2Hat / (Math.sqrt(vb2Hat) + eps);
+            const mb3Hat = this.mb3 / (1 - Math.pow(beta1, this.adamStep));
+            const vb3Hat = this.vb3sq / (1 - Math.pow(beta2, this.adamStep));
+            this.b3 -= learningRate * mb3Hat / (Math.sqrt(vb3Hat) + eps);
+          } else {
+            this.w1 -= learningRate * gradW1;
+            this.w2 -= learningRate * gradW2;
+            this.w3 -= learningRate * gradW3;
+            this.w4 -= learningRate * gradW4;
+            this.w5 -= learningRate * gradW5;
+            this.w6 -= learningRate * gradW6;
+            this.b1 -= learningRate * gradB1;
+            this.b2 -= learningRate * gradB2;
+            this.b3 -= learningRate * gradB3;
+          }
+
+          return totalLoss / batchIndices.length;
+        }
+
+        trainEpoch(learningRate, optimizer, batchSize) {
+          const base = Array.from({ length: data.length }, (_, index) => index);
+          for (let i = base.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [base[i], base[j]] = [base[j], base[i]];
+          }
+
+          let runningLoss = 0;
+          for (let start = 0; start < base.length; start += batchSize) {
+            const batch = base.slice(start, start + batchSize);
+            runningLoss += this.trainBatch(batch, learningRate, optimizer, batchSize);
+          }
+          return runningLoss / Math.ceil(base.length / batchSize);
+        }
+      }
+
+      function drawLossChart(history) {
+        const canvas = document.getElementById('lossChart');
+        const ctx = canvas.getContext('2d');
+        const { width, height } = canvas;
+        const pad = { left: 44, right: 18, top: 18, bottom: 34 };
+        const plotWidth = width - pad.left - pad.right;
+        const plotHeight = height - pad.top - pad.bottom;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        if (!history.length) return;
+
+        const maxLoss = Math.max(...history, 0.01);
+        const minLoss = 0;
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const y = pad.top + (plotHeight * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(width - pad.right, y);
+          ctx.stroke();
+        }
+
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#475569';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+          const value = minLoss + (maxLoss - minLoss) * (1 - i / 4);
+          const y = pad.top + (plotHeight * i) / 4;
+          ctx.fillText(value.toFixed(2), pad.left - 6, y + 4);
+        }
+
+        ctx.textAlign = 'center';
+        ctx.fillText('Epoch', width / 2, height - 6);
+        ctx.save();
+        ctx.translate(12, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Loss', 0, 0);
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.moveTo(pad.left, pad.top);
+        ctx.lineTo(pad.left, height - pad.bottom);
+        ctx.lineTo(width - pad.right, height - pad.bottom);
+        ctx.strokeStyle = '#64748b';
+        ctx.stroke();
+
+        ctx.beginPath();
+        history.forEach((loss, index) => {
+          const x = pad.left + (index / Math.max(history.length - 1, 1)) * plotWidth;
+          const y = pad.top + (1 - (loss - minLoss) / (maxLoss - minLoss || 1)) * plotHeight;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+
+      function drawBoundary(network) {
+        const canvas = document.getElementById('boundaryChart');
+        const ctx = canvas.getContext('2d');
+        const { width, height } = canvas;
+        const pad = { left: 48, right: 16, top: 12, bottom: 38 };
+        const plotWidth = width - pad.left - pad.right;
+        const plotHeight = height - pad.top - pad.bottom;
+        const cols = 90;
+        const rows = 60;
+
+        ctx.clearRect(0, 0, width, height);
+        for (let row = 0; row < rows; row++) {
+          const yValue = yRange.max - ((row + 0.5) / rows) * (yRange.max - yRange.min);
+          for (let col = 0; col < cols; col++) {
+            const xValue = xRange.min + ((col + 0.5) / cols) * (xRange.max - xRange.min);
+            const probability = network.feedforward([xValue, yValue]);
+            const blend = Math.round(Math.abs(probability - 0.5) * 150 + 50);
+            ctx.fillStyle = probability >= 0.5
+              ? `rgb(${255 - blend}, ${255 - blend}, 255)`
+              : `rgb(255, ${255 - blend}, ${255 - blend})`;
+            ctx.fillRect(pad.left + col * (plotWidth / cols), pad.top + row * (plotHeight / rows), plotWidth / cols + 1, plotHeight / rows + 1);
+          }
+        }
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pad.left, pad.top, plotWidth, plotHeight);
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#475569';
+        ctx.textAlign = 'center';
+        ctx.fillText('Input 1', pad.left + plotWidth / 2, height - 7);
+        ctx.save();
+        ctx.translate(13, pad.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Input 2', 0, 0);
+        ctx.restore();
+
+        data.forEach((point, index) => {
+          const x = pad.left + ((point[0] - xRange.min) / (xRange.max - xRange.min)) * plotWidth;
+          const y = pad.top + ((yRange.max - point[1]) / (yRange.max - yRange.min)) * plotHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fillStyle = labels[index] === 1 ? '#2563eb' : '#f97316';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
+
+        const selectedX = Number(document.getElementById('x1').value);
+        const selectedY = Number(document.getElementById('x2').value);
+        if (Number.isFinite(selectedX) && Number.isFinite(selectedY)
+          && selectedX >= xRange.min && selectedX <= xRange.max
+          && selectedY >= yRange.min && selectedY <= yRange.max) {
+          const x = pad.left + ((selectedX - xRange.min) / (xRange.max - xRange.min)) * plotWidth;
+          const y = pad.top + ((yRange.max - selectedY) / (yRange.max - yRange.min)) * plotHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 9, 0, Math.PI * 2);
+          ctx.strokeStyle = '#111827';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
+      function probabilityColor(value) {
+        const low = [249, 115, 22];
+        const high = [37, 99, 235];
+        const mix = clamp(value, 0, 1);
+        return `rgb(${low.map((channel, index) => Math.round(channel + (high[index] - channel) * mix)).join(',')})`;
+      }
+
+      function drawSurface(network) {
+        const canvas = document.getElementById('surfaceChart');
+        const ctx = canvas.getContext('2d');
+        const { width, height } = canvas;
+        const cols = 20;
+        const rows = 16;
+        const yScale = 5.6;
+        const originX = width / 2;
+        const originY = height - 42 - ((cols + rows) / 2) * yScale;
+        const xScale = 7.3;
+        const zScale = 180;
+        const yaw = surfaceView.yaw;
+        const pitch = surfaceView.pitch;
+
+        const project = (x, y, probability) => {
+          const centeredX = x - cols / 2;
+          const centeredY = y - rows / 2;
+          const rotatedX = centeredX * Math.cos(yaw) - centeredY * Math.sin(yaw);
+          const rotatedY = centeredX * Math.sin(yaw) + centeredY * Math.cos(yaw);
+          const groundHeight = (rotatedX + rotatedY) * yScale;
+          const probabilityHeight = probability * zScale;
+          const vertical = Math.SQRT2 * (
+            groundHeight * Math.cos(pitch) + probabilityHeight * Math.sin(pitch)
+          );
+          return {
+            x: originX + (rotatedX - rotatedY) * xScale,
+            y: originY - vertical
+          };
+        };
+
+        const values = [];
+        for (let row = 0; row <= rows; row++) {
+          values[row] = [];
+          for (let col = 0; col <= cols; col++) {
+            const xValue = xRange.min + (col / cols) * (xRange.max - xRange.min);
+            const yValue = yRange.min + (row / rows) * (yRange.max - yRange.min);
+            values[row][col] = network.feedforward([xValue, yValue]);
+          }
+        }
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        for (let row = rows - 1; row >= 0; row--) {
+          for (let col = 0; col < cols; col++) {
+            const points = [
+              project(col, row, values[row][col]),
+              project(col + 1, row, values[row][col + 1]),
+              project(col + 1, row + 1, values[row + 1][col + 1]),
+              project(col, row + 1, values[row + 1][col])
+            ];
+            const average = (values[row][col] + values[row][col + 1] + values[row + 1][col + 1] + values[row + 1][col]) / 4;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            points.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
+            ctx.fillStyle = probabilityColor(average);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+
+        const origin = project(0, rows, 0);
+        const xEnd = project(cols, rows, 0);
+        const yEnd = project(0, 0, 0);
+        const zEnd = project(0, rows, 1);
+
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.5;
+        [[origin, xEnd], [origin, yEnd], [origin, zEnd]].forEach(([start, end]) => {
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.stroke();
+        });
+
+        ctx.fillStyle = '#334155';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Input 1', xEnd.x + 12, xEnd.y + 14);
+        ctx.fillText('Input 2', yEnd.x - 12, yEnd.y + 14);
+        ctx.fillText('Output probability', zEnd.x + 30, zEnd.y + 4);
+        ctx.fillText('0', zEnd.x - 12, zEnd.y + 4);
+        ctx.fillText('1', zEnd.x - 12, origin.y + 3);
+      }
+
+      const surfaceView = { yaw: 0, pitch: Math.PI / 4 };
+      const surfaceCanvas = document.getElementById('surfaceChart');
+      let surfaceDrag = null;
+
+      surfaceCanvas.addEventListener('pointerdown', (event) => {
+        surfaceDrag = { x: event.clientX, y: event.clientY };
+        surfaceCanvas.setPointerCapture(event.pointerId);
+      });
+      surfaceCanvas.addEventListener('pointermove', (event) => {
+        if (!surfaceDrag || !activeNetwork) return;
+        const deltaX = event.clientX - surfaceDrag.x;
+        const deltaY = event.clientY - surfaceDrag.y;
+        surfaceDrag = { x: event.clientX, y: event.clientY };
+        surfaceView.yaw += deltaX * 0.012;
+        surfaceView.pitch = clamp(surfaceView.pitch - deltaY * 0.008, 0.2, 1.35);
+        drawSurface(activeNetwork);
+      });
+      const stopSurfaceDrag = () => { surfaceDrag = null; };
+      surfaceCanvas.addEventListener('pointerup', stopSurfaceDrag);
+      surfaceCanvas.addEventListener('pointercancel', stopSurfaceDrag);
+      surfaceCanvas.addEventListener('lostpointercapture', stopSurfaceDrag);
+      surfaceCanvas.addEventListener('keydown', (event) => {
+        const rotationStep = 0.12;
+        if (event.key === 'ArrowLeft') surfaceView.yaw -= rotationStep;
+        else if (event.key === 'ArrowRight') surfaceView.yaw += rotationStep;
+        else if (event.key === 'ArrowUp') surfaceView.pitch = clamp(surfaceView.pitch + rotationStep, 0.2, 1.35);
+        else if (event.key === 'ArrowDown') surfaceView.pitch = clamp(surfaceView.pitch - rotationStep, 0.2, 1.35);
+        else return;
+        event.preventDefault();
+        if (activeNetwork) drawSurface(activeNetwork);
+      });
+
+      function updatePrediction(network) {
+        const x1 = Number(document.getElementById('x1').value);
+        const x2 = Number(document.getElementById('x2').value);
+        if (!Number.isFinite(x1) || !Number.isFinite(x2)) {
+          resultBox.textContent = 'Enter valid numbers for both inputs.';
+          return;
+        }
+
+        const output = network.feedforward([x1, x2]);
+        const category = output >= 0.5 ? 'Class 1' : 'Class 0';
+        resultBox.innerHTML = `
+          <strong>Prediction:</strong> ${category}<br>
+          <strong>Probability of Class 1:</strong> ${(output * 100).toFixed(1)}%<br>
+          <strong>Raw output:</strong> ${output.toFixed(4)}
+        `;
+
+        drawBoundary(network);
+      }
+
+      const lrSlider = document.getElementById('lrSlider');
+      const lrValue = document.getElementById('lrValue');
+      lrSlider.addEventListener('input', () => { lrValue.textContent = lrSlider.value; });
+
+      const epochsSlider = document.getElementById('epochsSlider');
+      const epochsValue = document.getElementById('epochsValue');
+      epochsSlider.addEventListener('input', () => { epochsValue.textContent = epochsSlider.value; });
+
+      const batchSlider = document.getElementById('batchSlider');
+      const batchValue = document.getElementById('batchValue');
+      batchSlider.addEventListener('input', () => { batchValue.textContent = batchSlider.value; });
+
+      document.getElementById('x1').addEventListener('input', () => {
+        if (activeNetwork) updatePrediction(activeNetwork);
+      });
+      document.getElementById('x2').addEventListener('input', () => {
+        if (activeNetwork) updatePrediction(activeNetwork);
+      });
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      async function trainModel() {
+        const learningRate = Number(lrSlider.value);
+        const epochs = Number(epochsSlider.value);
+        const batchSize = Number(batchSlider.value);
+        const optimizer = document.getElementById('optimizerSelect').value;
+
+        trainButton.disabled = true;
+        trainButton.textContent = 'Training...';
+        statusText.textContent = 'Training in progress...';
+        resultBox.textContent = 'Training started';
+        updateProgress(0);
+        lossHistory = [];
+
+        const network = new TinyNetwork();
+        const chunkSize = Math.max(10, Math.min(50, Math.ceil(epochs / 20)));
+
+        try {
+          for (let completed = 0; completed < epochs; completed += chunkSize) {
+            const stopAt = Math.min(completed + chunkSize, epochs);
+            for (let epoch = completed; epoch < stopAt; epoch++) {
+              const loss = network.trainEpoch(learningRate, optimizer, batchSize);
+              if (epoch % 10 === 0 || epoch === epochs - 1) {
+                lossHistory.push(loss);
+              }
+            }
+            drawLossChart(lossHistory);
+            const progress = (stopAt / epochs) * 100;
+            updateProgress(progress);
+            statusText.textContent = `Training... ${stopAt} / ${epochs} epochs | loss: ${network.loss().toFixed(4)}`;
+            await sleep(16);
+          }
+
+          activeNetwork = network;
+          updateProgress(100);
+          statusText.textContent = `Training complete: ${epochs} epochs | final loss: ${network.loss().toFixed(4)}`;
+          updatePrediction(network);
+          drawSurface(network);
+        } catch (error) {
+          statusText.textContent = `Training failed: ${error.message}`;
+          resultBox.textContent = 'Training could not finish. Check the browser console for details.';
+          console.error('Training failed:', error);
+        } finally {
+          trainButton.disabled = false;
+          trainButton.textContent = 'Train again';
+        }
+      }
+
+      trainButton.addEventListener('click', trainModel);
+
+      function initialRender() {
+        const baseline = new TinyNetwork();
+        activeNetwork = baseline;
+        drawLossChart([]);
+        updatePrediction(baseline);
+        drawSurface(baseline);
+      }
+
+      initialRender();
+    </script>
+  </body>
+</html>
