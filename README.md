@@ -37,4 +37,4 @@ python network.py
 
 ## Deployment
 
-The browser demo is a static site and can be deployed with GitHub Pages. The included GitHub Actions workflow publishes the repository root when changes are pushed to `main`.
+The browser demo is a static site and can be deployed with GitHub Pages by selecting the `main` branch and `/ (root)` as the publishing source in the repository's Pages settings.
